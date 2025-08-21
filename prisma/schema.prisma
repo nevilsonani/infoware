@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Units of measure and conversions (baseUnit to unit with factor)
+model Unit {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique // e.g., KG, GM, LT, ML
+  name      String
+  baseCode  String    // the canonical base code this converts to (e.g., KG)
+  factor    Decimal   // multiply base quantity by factor to get this unit
+  products  Product[]
+  orderItems OrderItem[]
+}
+
+// Users with roles: BUYER, SUPPLIER, ADMIN
+enum Role {
+  BUYER
+  SUPPLIER
+  ADMIN
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String
+  role      Role
+  supplier  Supplier?
+  buyer     Buyer?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Supplier {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @unique
+  user      User      @relation(fields: [userId], references: [id])
+  products  Product[]
+  orders    Order[]   @relation("SupplierOrders")
+}
+
+model Buyer {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @unique
+  user      User      @relation(fields: [userId], references: [id])
+  orders    Order[]
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  supplierId  Int
+  supplier    Supplier  @relation(fields: [supplierId], references: [id])
+  name        String
+  description String?
+  price       Decimal   // price per base unit
+  baseUnitId  Int
+  baseUnit    Unit      @relation(fields: [baseUnitId], references: [id])
+  stockQty    Decimal   // stored in base unit quantity
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  items       OrderItem[]
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  FULFILLED
+  CANCELLED
+}
+
+model Order {
+  id           Int           @id @default(autoincrement())
+  buyerId      Int
+  supplierId   Int
+  buyer        Buyer         @relation(fields: [buyerId], references: [id])
+  supplier     Supplier      @relation("SupplierOrders", fields: [supplierId], references: [id])
+  status       OrderStatus   @default(PENDING)
+  totalAmount  Decimal       @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  items        OrderItem[]
+  histories    OrderStatusHistory[]
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  product     Product  @relation(fields: [productId], references: [id])
+  order       Order    @relation(fields: [orderId], references: [id])
+  unitId      Int      // unit buyer ordered in
+  unit        Unit     @relation(fields: [unitId], references: [id])
+  quantity    Decimal  // in unit
+  baseQty     Decimal  // converted to product base unit at order time
+  price       Decimal  // price per base unit at order time
+  lineTotal   Decimal  // baseQty * price
+}
+
+model OrderStatusHistory {
+  id        Int          @id @default(autoincrement())
+  orderId   Int
+  order     Order        @relation(fields: [orderId], references: [id])
+  from      OrderStatus?
+  to        OrderStatus
+  changedBy Int          // userId
+  createdAt DateTime     @default(now())
+}
+
+// Simple activity log for auditing
+model ActivityLog {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  action    String
+  metadata  Json?
+  createdAt DateTime  @default(now())
+}

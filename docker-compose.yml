@@ -1,0 +1,30 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: oms
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+  app:
+    build: .
+    command: sh -c "npm install && npx prisma migrate deploy && npm run dev"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/oms?schema=public
+      JWT_SECRET: changeme
+      PORT: 4000
+    ports:
+      - '4000:4000'
+    depends_on:
+      - db
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+volumes:
+  db-data:
+
+
