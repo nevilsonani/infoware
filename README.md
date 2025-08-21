@@ -10,14 +10,8 @@
 ## Setup
 Requirements: Node.js 18+, Docker Desktop (optional) or local PostgreSQL
 
-Environment variables (`.env`):
-```
-PORT=4000
-JWT_SECRET=changeme
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/oms?schema=public
-```
 
-### Using Docker (recommended for Postgres)
+### Using Docker
 ```
 docker compose up -d db
 npm install
